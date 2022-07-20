@@ -98,4 +98,4 @@ environment {
             sh 'rm -rf .git ./*'
         }
     }
-}
+
