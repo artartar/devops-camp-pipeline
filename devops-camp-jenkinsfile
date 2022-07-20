@@ -2,7 +2,7 @@ pipeline {
     agent {
         label 'jenkins-agent'
     }
-environment {
+    environment {
         PIPELINE_HASH = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
         HARBOR_REGISTRY = 'harbor.dev.afsmtddso.com'
         HARBOR_PROJECT = 'asimpson-harbor-project'
@@ -15,16 +15,15 @@ environment {
             steps {
                 echo "Cloning application repository"
                 //TODO("Lab 3 - Introduction to Automated Builds"): add github url
-                sh 'git clone https://github.com/artartar/afs-labs-student.git'
+                sh 'git clone <YOUR GITHUB REPOSITORY URL>'
                 //TODO("Lab 4 - Artifact Management"): add an environment variable
                 dir('afs-labs-student') {
                     script {
                         env.COMMIT_HASH = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     }
                 }
-                }
             }
-        
+        }
         stage('Application docker build') {
             steps {
                 echo "Building application image"
@@ -38,6 +37,16 @@ environment {
                         }
                     }
                 }
+                withCredentials([usernameColonPassword(credentialsId: '<YOUR CREDENTIAL ID NAME>', variable: 'HARBOR-AUTH')]) {
+                    script {
+                        sh 'docker build -t $APP_IMAGE_NAME-$COMMIT_HASH -f ./app/Dockerfile ./afs-labs-student'
+                        docker.withRegistry('https://$HARBOR_REGISTRY', '<YOUR CREDENTIAL ID NAME>') {
+                            sh 'docker tag $APP_IMAGE_NAME-$COMMIT_HASH $HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_IMAGE_NAME:$COMMIT_HASH-$PIPELINE_HASH'
+                            sh 'docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_IMAGE_NAME:$COMMIT_HASH-$PIPELINE_HASH'
+                        }
+                    }
+                }
+        }
             }
             //TODO("Lab 4 - Artifact Management"): clean local docker app image
             post {
@@ -46,21 +55,6 @@ environment {
                     script {
                         try {
                             sh 'docker rmi $APP_IMAGE_NAME-$COMMIT_HASH:latest'
-                            sh 'docker rmi $HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_IMAGE_NAME:$COMMIT_HASH-$PIPELINE_HASH'                            
-                        } catch (err) {
-                            echo err.getMessage()
-                        }
-                    }
-                }
-            }
-        }
-
-        post {
-                always {
-                    echo "Clean local $DB_IMAGE_NAME image"
-                    script {
-                        try {
-                            sh 'docker rmi $DB_IMAGE_NAME-$COMMIT_HASH:latest'
                             sh 'docker rmi $HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_IMAGE_NAME:$COMMIT_HASH-$PIPELINE_HASH'                            
                         } catch (err) {
                             echo err.getMessage()
@@ -83,6 +77,19 @@ environment {
                 }
             }
             //TODO("Lab 4 - Artifact Management"): clean local docker db image
+            post {
+                always {
+                    echo "Clean local $DB_IMAGE_NAME image"
+                    script {
+                        try {
+                            sh 'docker rmi $DB_IMAGE_NAME-$COMMIT_HASH:latest'
+                            sh 'docker rmi $HARBOR_REGISTRY/$HARBOR_PROJECT/$DB_IMAGE_NAME:$COMMIT_HASH-$PIPELINE_HASH'                            
+                        } catch (err) {
+                            echo err.getMessage()
+                        }
+                    }
+                }
+            }
         }
         //TODO("Lab 7 - Automated Security Scans"): add a stage
         stage('Deploy') {
@@ -92,11 +99,11 @@ environment {
             }
         }
     }
-}
     post {
         cleanup {
             echo "Clean workspace"
             sh 'rm -rf .git ./*'
         }
     }
+}    
 
