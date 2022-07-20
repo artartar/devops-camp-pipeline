@@ -92,6 +92,7 @@ environment {
             }
         }
     }
+}
     post {
         cleanup {
             echo "Clean workspace"
