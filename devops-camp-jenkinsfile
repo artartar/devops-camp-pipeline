@@ -24,7 +24,7 @@ environment {
                 }
                 }
             }
-        }
+        
         stage('Application docker build') {
             steps {
                 echo "Building application image"
@@ -98,4 +98,4 @@ environment {
             sh 'rm -rf .git ./*'
         }
     }
-
+}
